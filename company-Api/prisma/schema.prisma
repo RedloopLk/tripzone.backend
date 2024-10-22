@@ -6,3 +6,206 @@ datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
 }
+
+model Company {
+  id        Int              @id @default(autoincrement())
+  name      String
+  email     String           @unique
+  about     String?
+  address   String
+  phone     Json
+  services  CompanyService[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  AuditLog  AuditLog[]
+
+  @@index([name], name: "idx_company_name")
+}
+
+model CompanyService {
+  id          Int         @id @default(autoincrement())
+  name        String      @unique
+  description String?
+  map         Json
+  type        CompanyType
+  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  companyId   Int
+  Booking     Booking[]
+  TimeTable   TimeTable[]
+  Vehical     Vehical[]
+  Payment     Payment[]
+  AuditLog    AuditLog[]
+
+  @@unique([companyId, name])
+  @@index([companyId], name: "idx_company_service_company")
+}
+
+model TimeTable {
+  id        Int            @id @default(autoincrement())
+  service   CompanyService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  serviceId Int
+  day       dateType
+  startTime DateTime
+  endTime   DateTime
+  status    tripStatus
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  Trip      Trip[]
+
+  @@index([serviceId, day], name: "idx_timetable_service_day")
+}
+
+model Passanger {
+  id        Int       @id @default(autoincrement())
+  firstName String
+  lastName  String?
+  age       Int?
+  gender    Gender?
+  email     String?   @unique
+  mobile    Json
+  nic       String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  Booking   Booking[]
+  Trip      Trip[]
+
+  @@index([firstName, lastName], name: "idx_passenger_name")
+}
+
+model Booking {
+  id          Int            @id @default(autoincrement())
+  seatNo      Int
+  from        String
+  to          String
+  passanger   Passanger      @relation(fields: [passangerId], references: [id], onDelete: Cascade)
+  passangerId Int
+  service     CompanyService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  serviceId   Int
+  date        DateTime
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  Payment     Payment[]
+  AuditLog    AuditLog[]
+
+  @@index([passangerId], name: "idx_booking_passenger")
+  @@index([serviceId], name: "idx_booking_service")
+  @@index([from, to], name: "idx_booking_route")
+}
+
+model Trip {
+  id          Int       @id @default(autoincrement())
+  timeTable   TimeTable @relation(fields: [timeTableId], references: [id], onDelete: Cascade)
+  timeTableId Int
+  passanger   Passanger @relation(fields: [passangerId], references: [id], onDelete: Cascade)
+  passangerId Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([timeTableId, passangerId], name: "idx_trip_timetable_passenger")
+}
+
+model Vehical {
+  id         Int            @id @default(autoincrement())
+  RegNo      String         @unique
+  model      String?
+  type       VehicalType
+  leftSeats  Int?
+  rightSeats Int?
+  backSeats  Int?
+  totalSeats Int
+  service    CompanyService @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  serviceId  Int
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([model, type], name: "idx_vehicle_model_type")
+}
+
+model Payment {
+  id          Int             @id @default(autoincrement())
+  amount      Float
+  status      PaymentStatus
+  bookingData Json
+  booking     Booking?        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  bookingId   Int?
+  serviceData Json
+  service     CompanyService? @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  serviceId   Int?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  AuditLog    AuditLog[]
+
+  @@index([bookingId], name: "idx_payment_booking")
+}
+
+model AuditLog {
+  id           Int      @id @default(autoincrement())
+  entityName   String // Name of the entity being audited (e.g., Booking, CompanyService)
+  entityId     Int // ID of the entity being audited
+  action       String // Action performed (e.g., CREATE, UPDATE, DELETE)
+  previousData Json? // Data before the operation (for UPDATE or DELETE)
+  newData      Json? // Data after the operation (for CREATE or UPDATE)
+  performedBy  String // User or system that performed the action
+  timestamp    DateTime @default(now()) // When the action occurred
+  createdAt    DateTime @default(now())
+
+  companyId        Int?
+  companyServiceId Int?
+  bookingId        Int?
+  paymentId        Int?
+
+  company        Company?        @relation(fields: [companyId], references: [id])
+  companyService CompanyService? @relation(fields: [companyServiceId], references: [id])
+  booking        Booking?        @relation(fields: [bookingId], references: [id])
+  payment        Payment?        @relation(fields: [paymentId], references: [id])
+}
+
+enum PaymentStatus {
+  Half
+  Full
+  Pending
+}
+
+enum tripStatus {
+  ACTIVE
+  INACTIVE
+  CANCELLED
+}
+
+enum vehicalStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum CompanyType {
+  BUS_TRANSPORT
+  TAXI_SERVICE
+  RENT
+  TOURISM
+  TRIP
+  OTHER
+}
+
+enum VehicalType {
+  BUS
+  VAN
+  CAR
+  OTHER
+}
+
+enum dateType {
+  Monday
+  Tuesday
+  Wednesday
+  Thursday
+  Friday
+  Saturday
+  Sunday
+}
